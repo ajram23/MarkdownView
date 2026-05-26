@@ -16,7 +16,7 @@ import SwiftUI
 /// separate view instead.
 @preconcurrency
 @MainActor
-public protocol MarkdownLinkRenderer: Equatable {
+public protocol MarkdownLinkRenderer: Equatable, Sendable {
     /// A type that represents the link.
     associatedtype Body: View
 
@@ -62,17 +62,16 @@ public struct MarkdownLinkRendererConfiguration {
 /// `MarkdownRendererConfiguration`, which invalidates
 /// `CmarkFirstMarkdownViewRenderer`'s view cache.
 ///
-/// `@unchecked Sendable`: stored closures are always invoked on
-/// `@MainActor` (the protocol is `@preconcurrency @MainActor`), so the
-/// underlying renderer never crosses an actor boundary.
+/// `@unchecked Sendable`: the protocol's `Sendable` requirement makes
+/// `D: MarkdownLinkRenderer` automatically Sendable so the closure
+/// captures of `renderer: D` are legal. The `@unchecked` is for the
+/// `@MainActor` closure storage — Swift 6 strict mode flags
+/// `@MainActor (...) -> AnyView` stored properties as non-Sendable
+/// even though isolation guarantees they can only be called on
+/// MainActor. We've manually verified safety.
 public struct AnyMarkdownLinkRenderer: @unchecked Sendable, Equatable {
     let makeBody: @MainActor (MarkdownLinkRendererConfiguration) -> AnyView
     private let wrapped: Any
-    // Not `@Sendable`: would force `D: Sendable` on every consumer
-    // renderer. The enclosing struct is already `@unchecked Sendable`
-    // (escape hatch for the closure storage); the equality check itself
-    // runs during `MarkdownRendererConfiguration` diffing, never crosses
-    // an actor boundary in practice.
     private let isEqualTo: (Any) -> Bool
 
     public init<D: MarkdownLinkRenderer>(_ renderer: D) {
