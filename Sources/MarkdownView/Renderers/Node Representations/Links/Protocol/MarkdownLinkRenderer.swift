@@ -68,7 +68,12 @@ public struct MarkdownLinkRendererConfiguration {
 public struct AnyMarkdownLinkRenderer: @unchecked Sendable, Equatable {
     let makeBody: @MainActor (MarkdownLinkRendererConfiguration) -> AnyView
     private let wrapped: Any
-    private let isEqualTo: @Sendable (Any) -> Bool
+    // Not `@Sendable`: would force `D: Sendable` on every consumer
+    // renderer. The enclosing struct is already `@unchecked Sendable`
+    // (escape hatch for the closure storage); the equality check itself
+    // runs during `MarkdownRendererConfiguration` diffing, never crosses
+    // an actor boundary in practice.
+    private let isEqualTo: (Any) -> Bool
 
     public init<D: MarkdownLinkRenderer>(_ renderer: D) {
         self.wrapped = renderer
