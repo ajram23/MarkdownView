@@ -249,8 +249,7 @@ struct CmarkNodeVisitor: @preconcurrency MarkupVisitor {
         // foreground (e.g. visitInlineCode sets inlineCodeTintColor
         // explicitly) — matches Branch A semantics below.
         if let scheme = url.scheme,
-           (configuration.allowedLinkRenderers.contains(scheme) || configuration.allowedLinkRenderers.contains("*")),
-           let renderer = MarkdownLinkRenders.named(scheme)
+           let renderer = configuration.linkRenderers[scheme] ?? configuration.linkRenderers["*"]
         {
             let defaultLabel: AnyView
             if let attrs = nodeView.asAttributedString {
@@ -268,12 +267,11 @@ struct CmarkNodeVisitor: @preconcurrency MarkupVisitor {
                 )
             }
             let config = MarkdownLinkRendererConfiguration(url: url, label: defaultLabel)
-            // Erase to AnyView so MarkdownNodeView.init<Content: View>
-            // gets a concrete View type (existential `any View` returned
-            // by renderer.makeBody doesn't itself conform to View).
-            // Same pattern MarkdownImage.swift uses for the image dispatch.
+            // `renderer.makeBody` is the stored closure on
+            // `AnyMarkdownLinkRenderer` and already returns `AnyView` — no
+            // explicit `.erasedToAnyView()` needed.
             return MarkdownNodeView {
-                renderer.makeBody(configuration: config).erasedToAnyView()
+                renderer.makeBody(config)
             }
         }
 

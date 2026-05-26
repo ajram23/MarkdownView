@@ -20,8 +20,7 @@ extension View {
         forURLScheme urlScheme: String
     ) -> some View {
         transformEnvironment(\.markdownRendererConfiguration) { configuration in
-            MarkdownLinkRenders.shared.addRenderer(renderer, forURLScheme: urlScheme)
-            configuration.allowedLinkRenderers.insert(urlScheme)
+            configuration.linkRenderers[urlScheme] = AnyMarkdownLinkRenderer(renderer)
         }
     }
 }

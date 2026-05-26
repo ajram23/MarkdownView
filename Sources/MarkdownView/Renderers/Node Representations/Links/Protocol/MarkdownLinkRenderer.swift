@@ -16,7 +16,7 @@ import SwiftUI
 /// separate view instead.
 @preconcurrency
 @MainActor
-public protocol MarkdownLinkRenderer {
+public protocol MarkdownLinkRenderer: Equatable {
     /// A type that represents the link.
     associatedtype Body: View
 
@@ -54,29 +54,34 @@ public struct MarkdownLinkRendererConfiguration {
 
 // MARK: - Type Erasure
 
-/// A type-erasure for type conforms to `MarkdownLinkRenderer`.
-public struct AnyMarkdownLinkRenderer: MarkdownLinkRenderer {
-    public typealias Body = AnyView
-
-    private let _makeBody: (Configuration) -> Body
-
-    public init<D: MarkdownLinkRenderer>(erasing renderer: D) {
-        _makeBody = {
-            renderer
-                .makeBody(configuration: $0)
-                .erasedToAnyView()
-        }
-    }
+/// Type-erased `MarkdownLinkRenderer`.
+///
+/// `Equatable` so it can live in `MarkdownRendererConfiguration` and
+/// participate in renderer-cache invalidation: swapping the underlying
+/// renderer for a given scheme changes the equality of the surrounding
+/// `MarkdownRendererConfiguration`, which invalidates
+/// `CmarkFirstMarkdownViewRenderer`'s view cache.
+///
+/// `@unchecked Sendable`: stored closures are always invoked on
+/// `@MainActor` (the protocol is `@preconcurrency @MainActor`), so the
+/// underlying renderer never crosses an actor boundary.
+public struct AnyMarkdownLinkRenderer: @unchecked Sendable, Equatable {
+    let makeBody: @MainActor (MarkdownLinkRendererConfiguration) -> AnyView
+    private let wrapped: Any
+    private let isEqualTo: @Sendable (Any) -> Bool
 
     public init<D: MarkdownLinkRenderer>(_ renderer: D) {
-        _makeBody = {
-            renderer
-                .makeBody(configuration: $0)
-                .erasedToAnyView()
+        self.wrapped = renderer
+        self.makeBody = { config in
+            renderer.makeBody(configuration: config).erasedToAnyView()
+        }
+        self.isEqualTo = { other in
+            guard let other = other as? D else { return false }
+            return other == renderer
         }
     }
 
-    public func makeBody(configuration: Configuration) -> AnyView {
-        _makeBody(configuration)
+    public static func == (lhs: AnyMarkdownLinkRenderer, rhs: AnyMarkdownLinkRenderer) -> Bool {
+        lhs.isEqualTo(rhs.wrapped)
     }
 }
