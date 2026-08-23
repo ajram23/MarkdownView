@@ -39,9 +39,9 @@ public struct MarkdownContent: Sendable {
     
     class ParsedDocumentStore: /* NSLock */ @unchecked Sendable {
         private var lock = NSLock()
-        private var caches: [ParseOptions.RawValue : Document] = [:]
+        private var caches: [ParseOptions.RawValue : Markdown.Document] = [:]
         
-        fileprivate func parse(_ rawContent: RawMarkdownContent, options: ParseOptions = ParseOptions()) -> Document {
+        fileprivate func parse(_ rawContent: RawMarkdownContent, options: ParseOptions = ParseOptions()) -> Markdown.Document {
             lock.lock()
             defer { lock.unlock() }
             
@@ -49,7 +49,7 @@ public struct MarkdownContent: Sendable {
                 return cached
             }
             
-            let document = Document(
+            let document = Markdown.Document(
                 parsing: rawContent.text,
                 source: rawContent.source,
                 options: options
@@ -58,7 +58,7 @@ public struct MarkdownContent: Sendable {
             return document
         }
         
-        var documents: LazySequence<Dictionary<ParseOptions.RawValue, Document>.Values> {
+        var documents: LazySequence<Dictionary<ParseOptions.RawValue, Markdown.Document>.Values> {
             lock.withLock {
                 caches.values.lazy
             }
@@ -75,7 +75,7 @@ public struct MarkdownContent: Sendable {
         self.store = ParsedDocumentStore()
     }
     
-    func parse(options: ParseOptions = ParseOptions()) -> Document {
+    func parse(options: ParseOptions = ParseOptions()) -> Markdown.Document {
         store.parse(raw, options: options)
     }
 }

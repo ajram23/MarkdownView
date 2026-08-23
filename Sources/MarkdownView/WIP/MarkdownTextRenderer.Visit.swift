@@ -21,7 +21,7 @@ extension MarkdownTextRenderer: @preconcurrency MarkupVisitor {
         )
     }
     
-    mutating func visitDocument(_ document: Document) -> MarkdownTextNode {
+    mutating func visitDocument(_ document: Markdown.Document) -> MarkdownTextNode {
         MarkdownTextNode(
             kind: .document,
             children: document.children.enumerated().map {
